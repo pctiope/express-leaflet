@@ -3,9 +3,7 @@ var map = L.map('map').setView([14.6539, 121.0685], 13);
 var osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 }).addTo(map);
-var aqiPolygons, excludePolygons;
-var aqiPolyadded = false, excludePolyAdded = false;
-var infoAdded = false, legendAdded = false, routerAdded = false;
+var aqiPolygons, excludePolygons, info, legend, router;
 var layerControl = L.control.layers(null,null,{collapsed:false}).addTo(map);
 
 function LoadData(){
@@ -65,7 +63,7 @@ function LoadData(){
             }
             function resetHighlight(e) {
                 var layer = e.target;
-                aqiPolygons.resetStyle();
+                aqiPolygons.resetStyle(layer);
                 info.update();
             }
             function zoomToFeature(e) {
@@ -80,29 +78,26 @@ function LoadData(){
                 });
             }
 
+            if(aqiPolygons){
+                layerControl.removeLayer(aqiPolygons);
+                map.removeLayer(aqiPolygons);
+            }
             aqiPolygons = L.geoJson(geojsonPolygon, {
                 style: style,
                 onEachFeature: onEachFeature
             });
-            // if(!aqiPolyadded){
-                layerControl.addOverlay(aqiPolygons, "AQI levels");
-                aqiPolyadded = true;
-            // }
-                
-                // window.alert("not updated");
-            // }
-            // else{
-            //     window.alert("updated");
-            //     aqiPolygons.resetStyle();
-            //     window.alert("style loaded");
-            // }
+            layerControl.addOverlay(aqiPolygons, "AQI polygons");
+            aqiPolygons.addTo(map);
 
             // L.geoJSON(geojsonPolygon, {
             //     onEachFeature: function(feature, featureLayer) {
             //     featureLayer.bindPopup(feature.properties.AQI.toString());
             //     }}).addTo(map);
 
-            var info = L.control({position: 'bottomright'});
+            if(info){
+                map.removeControl(info);
+            }
+            info = L.control({position: 'bottomright'});
             info.onAdd = function (map) {
                 this._div = L.DomUtil.create('div', 'info'); // create a div with a class "info"
                 this.update();
@@ -114,12 +109,12 @@ function LoadData(){
                     '<b>' + props + '</b> US AQI'
                     : 'Hover over an area');
             };
-            if (!infoAdded){
-                info.addTo(map);
-                infoAdded = true;
-            }
+            info.addTo(map);
 
-            var legend = L.control({position: 'bottomleft'});
+            if(legend){
+                map.removeControl(legend);
+            }
+            legend = L.control({position: 'bottomleft'});
             legend.onAdd = function (map) {
                 var div = L.DomUtil.create('div', 'info legend'),
                     grades = [0, 1*maxAQI/7, 2*maxAQI/7, 3*maxAQI/7, 4*maxAQI/7, 5*maxAQI/7, 6*maxAQI/7, maxAQI],
@@ -134,11 +129,7 @@ function LoadData(){
                     '<i style="background:' + '#000000' + '"></i> ' + threshold + '+' + ' (threshold)'; // black legend for threshold
                 return div;
             };
-            if (!legendAdded){
-                legend.addTo(map);
-                legendAdded = true;
-            }
-
+            legend.addTo(map);
         })
         .catch(function (err) {
             console.log('error: ' + err);
@@ -151,22 +142,29 @@ function LoadData(){
         })
         .then(function (data) {
             var geojsonPolygon = data;
-            excludePolygons = L.geoJSON(geojsonPolygon, {color: 'black'});
-            if(!excludePolyAdded){
-                layerControl.addOverlay(excludePolygons, "Excluded Polygon");
-                excludePolyAdded = true;
-            }
             var coords = '';
             coords = geojsonPolygon["features"][0]["geometry"]["coordinates"];
 
-            var router = L.Routing.control({
+            if(excludePolygons){
+                layerControl.removeLayer(excludePolygons);
+                map.removeLayer(excludePolygons);
+            }
+            excludePolygons = L.geoJSON(geojsonPolygon, {color: 'black'});
+            layerControl.addOverlay(excludePolygons, "Excluded Polygon");
+            excludePolygons.addTo(map);
+
+            if(router){
+                map.removeControl(router);
+            }
+            router = L.Routing.control({
                 router: L.Routing.valhalla('','pedestrian',coords,''),
                 formatter: new L.Routing.Valhalla.Formatter(),
                 waypoints: [
                     L.latLng(14.6539, 121.0685),
-                    L.latLng(14.6399, 121.0785)
+                    L.latLng(14.574 , 121.052)
                 ],
                 routeWhileDragging: false,
+                fitSelectedRoutes: false,
                 geocoder: L.Control.Geocoder.nominatim(),
                 waypointNameFallback: function(latLng) {
                     function zeroPad(n) {
@@ -186,11 +184,7 @@ function LoadData(){
 
                     return sexagesimal(latLng.lat, 'N', 'S') + ' ' + sexagesimal(latLng.lng, 'E', 'W');
                 }
-            })
-            if (!routerAdded){
-                router.addTo(map);
-                routerAdded = true;
-            }
+            }).addTo(map);
         })
         .catch(function (err) {
             console.log('error: ' + err);
