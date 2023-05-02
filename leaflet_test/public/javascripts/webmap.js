@@ -4,7 +4,35 @@ var osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 }).addTo(map);
 var aqiPolygons, excludePolygons, info, legend, router;
+var plan = L.Routing.plan(
+    [
+        L.latLng(14.6539, 121.0685),
+        L.latLng(14.574 , 121.052)
+    ],{
+    routeWhileDragging: false,
+    fitSelectedRoutes: false,
+    geocoder: L.Control.Geocoder.nominatim(),
+    waypointNameFallback: function(latLng) {
+        function zeroPad(n) {
+            n = Math.round(n);
+            return n < 10 ? '0' + n : n;
+        }
+        function sexagesimal(p, pos, neg) {
+            var n = Math.abs(p),
+                degs = Math.floor(n),
+                mins = (n - degs) * 60,
+                secs = (mins - Math.floor(mins)) * 60,
+                frac = Math.round((secs - Math.floor(secs)) * 100);
+            return (n >= 0 ? pos : neg) + degs + '°' +
+                zeroPad(mins) + '\'' +
+                zeroPad(secs) + '.' + zeroPad(frac) + '"';
+        }
+
+        return sexagesimal(latLng.lat, 'N', 'S') + ' ' + sexagesimal(latLng.lng, 'E', 'W');
+    }
+    });
 var layerControl = L.control.layers(null,null,{collapsed:false}).addTo(map);
+
 
 function LoadData(){
     fetch('../polygonized.json')
@@ -159,31 +187,7 @@ function LoadData(){
             router = L.Routing.control({
                 router: L.Routing.valhalla('','pedestrian',coords,''),
                 formatter: new L.Routing.Valhalla.Formatter(),
-                waypoints: [
-                    L.latLng(14.6539, 121.0685),
-                    L.latLng(14.574 , 121.052)
-                ],
-                routeWhileDragging: false,
-                fitSelectedRoutes: false,
-                geocoder: L.Control.Geocoder.nominatim(),
-                waypointNameFallback: function(latLng) {
-                    function zeroPad(n) {
-                        n = Math.round(n);
-                        return n < 10 ? '0' + n : n;
-                    }
-                    function sexagesimal(p, pos, neg) {
-                        var n = Math.abs(p),
-                            degs = Math.floor(n),
-                            mins = (n - degs) * 60,
-                            secs = (mins - Math.floor(mins)) * 60,
-                            frac = Math.round((secs - Math.floor(secs)) * 100);
-                        return (n >= 0 ? pos : neg) + degs + '°' +
-                            zeroPad(mins) + '\'' +
-                            zeroPad(secs) + '.' + zeroPad(frac) + '"';
-                    }
-
-                    return sexagesimal(latLng.lat, 'N', 'S') + ' ' + sexagesimal(latLng.lng, 'E', 'W');
-                }
+                plan: plan
             }).addTo(map);
         })
         .catch(function (err) {
