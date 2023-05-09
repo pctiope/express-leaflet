@@ -358,7 +358,7 @@
   
     L.Routing.Valhalla = L.Class.extend({
       options: {
-        serviceUrl: 'http://localhost:8002/',
+        serviceUrl: 'https://valhalla1.openstreetmap.de/',
         timeout: 30 * 1000,
         transitmode: 'pedestrian',
         polygon: ''
