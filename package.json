@@ -1,5 +1,5 @@
 {
-  "name": "leaflet-test",
+  "name": "express-leaflet",
   "version": "0.0.0",
   "private": true,
   "scripts": {
