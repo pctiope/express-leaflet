@@ -11,7 +11,6 @@ var plan = L.Routing.plan(
     ]);
 var layerControl = L.control.layers(null,null,{collapsed:false}).addTo(map);
 
-
 function LoadData(){
     fetch('../polygonized.json')
         .then(function (response) {
@@ -162,31 +161,38 @@ function LoadData(){
             if(router){
                 map.removeControl(router);
             }
+
+
             router = L.Routing.control({
                 router: L.Routing.valhalla('','pedestrian',coords,''),
                 formatter: new L.Routing.Valhalla.Formatter(),
                 routeWhileDragging: false,
                 fitSelectedRoutes: false,
                 plan: plan,
-            geocoder: L.Control.Geocoder.nominatim(),
-            waypointNameFallback: function(latLng) {
-                function zeroPad(n) {
-                    n = Math.round(n);
-                    return n < 10 ? '0' + n : n;
+                geocoder: L.Control.Geocoder.nominatim(),
+                waypointNameFallback: function(latLng){
+                    function zeroPad(n) {
+                        n = Math.round(n);
+                        return n < 10 ? '0' + n : n;
+                    }
+                    function sexagesimal(p, pos, neg) {
+                        var n = Math.abs(p),
+                            degs = Math.floor(n),
+                            mins = (n - degs) * 60,
+                            secs = (mins - Math.floor(mins)) * 60,
+                            frac = Math.round((secs - Math.floor(secs)) * 100);
+                        return (n >= 0 ? pos : neg) + degs + '°' +
+                            zeroPad(mins) + '\'' +
+                            zeroPad(secs) + '.' + zeroPad(frac) + '"';
+                    }
+                    return sexagesimal(latLng.lat, 'N', 'S') + ' ' + sexagesimal(latLng.lng, 'E', 'W');
                 }
-                function sexagesimal(p, pos, neg) {
-                    var n = Math.abs(p),
-                        degs = Math.floor(n),
-                        mins = (n - degs) * 60,
-                        secs = (mins - Math.floor(mins)) * 60,
-                        frac = Math.round((secs - Math.floor(secs)) * 100);
-                    return (n >= 0 ? pos : neg) + degs + '°' +
-                        zeroPad(mins) + '\'' +
-                        zeroPad(secs) + '.' + zeroPad(frac) + '"';
-                }
-                return sexagesimal(latLng.lat, 'N', 'S') + ' ' + sexagesimal(latLng.lng, 'E', 'W');
-            }}).addTo(map);
+            }
+            ).addTo(map);
+        
+        
         })
+        
         .catch(function (err) {
             console.log('error: ' + err);
         });
