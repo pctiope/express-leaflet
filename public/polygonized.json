@@ -1,7 +1,7 @@
 {
     "type": "FeatureCollection",
     "name": "polygonized",
-    "threshold": 80,
+    "threshold": 106,
     "crs": {
         "type": "name",
         "properties": {
