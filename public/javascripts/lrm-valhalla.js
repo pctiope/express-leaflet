@@ -415,7 +415,7 @@
           if (!timedOut) {
             if (!err) {
               data = JSON.parse(resp.responseText);
-              //alert(JSON.stringify(data));
+              alert(JSON.stringify(data));
               this._routeDone(data, wps, callback, context);
             } else {
               data_err = JSON.parse(err.responseText);
