@@ -452,7 +452,7 @@
         
         for(var i = 0; i < response.trip.legs.length; i++){
           var coord = polyline.decode(response.trip.legs[i].shape, 6);
-          alert(response.trip.legs[i].shape)
+          alert(response.trip.legs[i].shape);
           for(var k = 0; k < coord.length; k++){
             coordinates.push(coord[k]);
           }
