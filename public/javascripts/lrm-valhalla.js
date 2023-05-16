@@ -415,11 +415,11 @@
           if (!timedOut) {
             if (!err) {
               data = JSON.parse(resp.responseText);
-              //(JSON.stringify(data));
+              alert(JSON.stringify(data));
               this._routeDone(data, wps, callback, context);
             } else {
               data_err = JSON.parse(err.responseText);
-              //alert(JSON.stringify(data_err));
+              alert(JSON.stringify(data_err));
               callback.call(context || callback, {
                 status: err.status,
                 message: err.responseText
@@ -467,8 +467,8 @@
           }
   
           shapeIndex += response.trip.legs[i].maneuvers[response.trip.legs[i].maneuvers.length-1]["begin_shape_index"];
-          //(JSON.stringify(coordinates))
-          //alert(response.trip.legs[i].maneuvers.length)
+          alert(JSON.stringify(coordinates))
+          alert(response.trip.legs[i].maneuvers.length)
         }
        
         actualWaypoints = this._toWaypoints(inputWaypoints, response.trip.locations);

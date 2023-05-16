@@ -1,5 +1,6 @@
 (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
-var map = L.map('map').setView([14.6539, 121.0685], 13);
+var map = L.map('map').setView([14.6539, 121.0685], 13);\
+var threshold = prompt("Map threshold: ");
 var osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 }).addTo(map);
@@ -40,7 +41,7 @@ function LoadData(){
         })
         .then(function (data) {
             var geojsonPolygon = data;
-            var threshold = geojsonPolygon.threshold;
+            //var threshold = geojsonPolygon.threshold;
             var maxAQI = 0;
             var polygon_AQI = 0;
             for(var i=0; i < geojsonPolygon.features.length; i++){
