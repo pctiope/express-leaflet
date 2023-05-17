@@ -49,22 +49,15 @@ function LoadData(){
             };
 
             function getColor(d) {
-                return  d > maxAQI      ? '#a07684' :       // AQI chart (should be absolute scale?)
-                        d > 6*maxAQI/7  ? '#A37DB8' :
-                        d > 5*maxAQI/7  ? '#E31A1C' :
-                        d > 4*maxAQI/7  ? '#F6676B' :
-                        d > 3*maxAQI/7  ? '#FC9956' :
-                        d > 2*maxAQI/7  ? '#F7D460' :
-                        d > 1*maxAQI/7  ? '#ABD162' :
-                                    '#47E60E' ;
-                // return  d > maxAQI  ? '#800026' :       // Red Gradient (for relative scale?)
-                //         d > 6*maxAQI/7  ? '#BD0026' :
-                //         d > 5*maxAQI/7  ? '#E31A1C' :
-                //         d > 4*maxAQI/7  ? '#FC4E2A' :
-                //         d > 3*maxAQI/7  ? '#FD8D3C' :
-                //         d > 2*maxAQI/7  ? '#FEB24C' :
-                //         d > 1*maxAQI/7   ? '#FED976' :
-                //                    '#FFEDA0' ;
+                redval = (d > maxAQI/2) ? 1 : redval = 2*d/maxAQI;
+                var hexred = (Math.floor(redval*255)).toString(16);
+                hexred = hexred.length == 1 ? '0'.concat(hexred) : hexred;
+                greval = (d < maxAQI/2) ? 1 : 2*(1-(d/maxAQI));
+                var hexgre = Math.floor((greval*255)).toString(16);
+                hexgre = hexgre.length == 1 ? '0'.concat(hexgre) : hexgre;
+                var hex = "#".concat(hexred,hexgre,'00');
+                //alert(hex)
+                return hex;
             }
             function style(feature) {
                 return {            // highlight black if >= threshold
@@ -143,7 +136,7 @@ function LoadData(){
             legend = L.control({position: 'bottomleft'});
             legend.onAdd = function (map) {
                 var div = L.DomUtil.create('div', 'info legend'),
-                    grades = [0, 1*maxAQI/7, 2*maxAQI/7, 3*maxAQI/7, 4*maxAQI/7, 5*maxAQI/7, 6*maxAQI/7, maxAQI],
+                    grades = [0, 1*maxAQI/7, 2*maxAQI/7, 3*maxAQI/7, 4*maxAQI/7, 5*maxAQI/7, 6*maxAQI/7],
                     labels = [];
                 // loop through our density intervals and generate a label with a colored square for each interval
                 for (var i = 0; i < grades.length; i++) {
