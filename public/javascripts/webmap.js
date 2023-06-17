@@ -1,16 +1,10 @@
 (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
-var map = L.map('map').setView([14.6539, 121.0685], 13);
-var osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-}).addTo(map);
 var aqiPolygons, excludePolygons, info, legend, router;
 var plan = L.Routing.plan(
     [
         L.latLng(14.6539, 121.0685),
         L.latLng(14.574 , 121.052)
     ],{
-    routeWhileDragging: false,
-    fitSelectedRoutes: false,
     geocoder: L.Control.Geocoder.nominatim(),
     waypointNameFallback: function(latLng) {
         function zeroPad(n) {
@@ -51,14 +45,20 @@ function LoadData(){
             };
 
             function getColor(d) {
-                return  d > maxAQI      ? '#a07684' :       // AQI chart (should be absolute scale?)
-                        d > 6*maxAQI/7  ? '#A37DB8' :
-                        d > 5*maxAQI/7  ? '#E31A1C' :
-                        d > 4*maxAQI/7  ? '#F6676B' :
-                        d > 3*maxAQI/7  ? '#FC9956' :
-                        d > 2*maxAQI/7  ? '#F7D460' :
-                        d > 1*maxAQI/7  ? '#ABD162' :
-                                    '#47E60E' ;
+                var hexred = (Math.floor(d/maxAQI*255)).toString(16);
+                hexred = hexred.length == 1 ? '0'.concat(hexred) : hexred;
+                var hexgre = (Math.floor((maxAQI-d)/maxAQI*255)).toString(16);
+                hexgre = hexgre.length == 1 ? '0'.concat(hexgre) : hexgre;
+                var hex = "#".concat(hexred,hexgre,'00');
+                return hex;
+                // return  d > maxAQI      ? '#a07684' :       // AQI chart (should be absolute scale?)
+                //         d > 6*maxAQI/7  ? '#A37DB8' :
+                //         d > 5*maxAQI/7  ? '#E31A1C' :
+                //         d > 4*maxAQI/7  ? '#F6676B' :
+                //         d > 3*maxAQI/7  ? '#FC9956' :
+                //         d > 2*maxAQI/7  ? '#F7D460' :
+                //         d > 1*maxAQI/7  ? '#ABD162' :
+                //                     '#47E60E' ;
                 // return  d > maxAQI  ? '#800026' :       // Red Gradient (for relative scale?)
                 //         d > 6*maxAQI/7  ? '#BD0026' :
                 //         d > 5*maxAQI/7  ? '#E31A1C' :
@@ -84,7 +84,7 @@ function LoadData(){
                     weight: 1,
                     color: '#666',
                     dashArray: '',
-                    fillOpacity: 0.7
+                    fillOpacity: 1
                 });
                 layer.bringToFront();
                 info.update(layer.feature.properties.AQI.toString());
@@ -96,7 +96,7 @@ function LoadData(){
             }
             function zoomToFeature(e) {
                 map.fitBounds(e.target.getBounds());
-                //alert(threshold);                     # debugging
+                alert(getColor(e.target.feature.properties.AQI));
             }
             function onEachFeature(feature, layer) {
                 layer.on({
@@ -145,7 +145,7 @@ function LoadData(){
             legend = L.control({position: 'bottomleft'});
             legend.onAdd = function (map) {
                 var div = L.DomUtil.create('div', 'info legend'),
-                    grades = [0, 1*maxAQI/7, 2*maxAQI/7, 3*maxAQI/7, 4*maxAQI/7, 5*maxAQI/7, 6*maxAQI/7, maxAQI],
+                    grades = [0, 1*maxAQI/7, 2*maxAQI/7, 3*maxAQI/7, 4*maxAQI/7, 5*maxAQI/7, 6*maxAQI/7],
                     labels = [];
                 // loop through our density intervals and generate a label with a colored square for each interval
                 for (var i = 0; i < grades.length; i++) {
@@ -187,6 +187,8 @@ function LoadData(){
             router = L.Routing.control({
                 router: L.Routing.valhalla('','pedestrian',coords,''),
                 formatter: new L.Routing.Valhalla.Formatter(),
+                routeWhileDragging: false,
+                fitSelectedRoutes: false,
                 plan: plan
             }).addTo(map);
         })
