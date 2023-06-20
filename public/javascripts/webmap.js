@@ -1,5 +1,5 @@
 (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
-var aqiPolygons, excludePolygons, info, legend, router;
+
 var plan = L.Routing.plan(
     [
         L.latLng(14.6539, 121.0685),
@@ -25,8 +25,18 @@ var plan = L.Routing.plan(
         return sexagesimal(latLng.lat, 'N', 'S') + ' ' + sexagesimal(latLng.lng, 'E', 'W');
     }
     });
+
+var aqiPolygons, info, legend;
 var layerControl = L.control.layers(null,null,{collapsed:false}).addTo(map);
 
+var excludePoly = ''
+var router = L.Routing.control({
+    router: L.Routing.valhalla('','pedestrian',excludePoly,''),
+    formatter: new L.Routing.Valhalla.Formatter(),
+    routeWhileDragging: false,
+    fitSelectedRoutes: false,
+    plan: plan
+}).addTo(map);
 
 function LoadData(){
     fetch('../polygonized.json')
@@ -45,28 +55,15 @@ function LoadData(){
             };
 
             function getColor(d) {
-                var hexred = (Math.floor(d/maxAQI*255)).toString(16);
+                redval = (d > maxAQI/2) ? 1 : redval = 2*d/maxAQI;
+                var hexred = (Math.floor(redval*255)).toString(16);
                 hexred = hexred.length == 1 ? '0'.concat(hexred) : hexred;
-                var hexgre = (Math.floor((maxAQI-d)/maxAQI*255)).toString(16);
+                greval = (d < maxAQI/2) ? 1 : 2*(1-(d/maxAQI));
+                var hexgre = Math.floor((greval*255)).toString(16);
                 hexgre = hexgre.length == 1 ? '0'.concat(hexgre) : hexgre;
                 var hex = "#".concat(hexred,hexgre,'00');
+                //alert(hex)
                 return hex;
-                // return  d > maxAQI      ? '#a07684' :       // AQI chart (should be absolute scale?)
-                //         d > 6*maxAQI/7  ? '#A37DB8' :
-                //         d > 5*maxAQI/7  ? '#E31A1C' :
-                //         d > 4*maxAQI/7  ? '#F6676B' :
-                //         d > 3*maxAQI/7  ? '#FC9956' :
-                //         d > 2*maxAQI/7  ? '#F7D460' :
-                //         d > 1*maxAQI/7  ? '#ABD162' :
-                //                     '#47E60E' ;
-                // return  d > maxAQI  ? '#800026' :       // Red Gradient (for relative scale?)
-                //         d > 6*maxAQI/7  ? '#BD0026' :
-                //         d > 5*maxAQI/7  ? '#E31A1C' :
-                //         d > 4*maxAQI/7  ? '#FC4E2A' :
-                //         d > 3*maxAQI/7  ? '#FD8D3C' :
-                //         d > 2*maxAQI/7  ? '#FEB24C' :
-                //         d > 1*maxAQI/7   ? '#FED976' :
-                //                    '#FFEDA0' ;
             }
             function style(feature) {
                 return {            // highlight black if >= threshold
@@ -84,7 +81,7 @@ function LoadData(){
                     weight: 1,
                     color: '#666',
                     dashArray: '',
-                    fillOpacity: 1
+                    fillOpacity: 0.7
                 });
                 layer.bringToFront();
                 info.update(layer.feature.properties.AQI.toString());
@@ -96,7 +93,6 @@ function LoadData(){
             }
             function zoomToFeature(e) {
                 map.fitBounds(e.target.getBounds());
-                alert(getColor(e.target.feature.properties.AQI));
             }
             function onEachFeature(feature, layer) {
                 layer.on({
@@ -145,8 +141,7 @@ function LoadData(){
             legend = L.control({position: 'bottomleft'});
             legend.onAdd = function (map) {
                 var div = L.DomUtil.create('div', 'info legend'),
-                    grades = [0, 1*maxAQI/7, 2*maxAQI/7, 3*maxAQI/7, 4*maxAQI/7, 5*maxAQI/7, 6*maxAQI/7],
-                    labels = [];
+                    grades = [0*maxAQI/7, 1*maxAQI/7, 2*maxAQI/7, 3*maxAQI/7, 4*maxAQI/7, 5*maxAQI/7, 6*maxAQI/7];
                 // loop through our density intervals and generate a label with a colored square for each interval
                 for (var i = 0; i < grades.length; i++) {
                     div.innerHTML +=
@@ -170,27 +165,20 @@ function LoadData(){
         })
         .then(function (data) {
             var geojsonPolygon = data;
-            var coords = '';
-            coords = geojsonPolygon["features"][0]["geometry"]["coordinates"];
+            excludePoly = '';
+            excludePoly = geojsonPolygon["features"][0]["geometry"]["coordinates"];
 
-            if(excludePolygons){
-                layerControl.removeLayer(excludePolygons);
-                map.removeLayer(excludePolygons);
-            }
-            excludePolygons = L.geoJSON(geojsonPolygon, {color: 'black'});
-            layerControl.addOverlay(excludePolygons, "Excluded Polygon");
-            excludePolygons.addTo(map);
-
-            if(router){
-                map.removeControl(router);
-            }
-            router = L.Routing.control({
-                router: L.Routing.valhalla('','pedestrian',coords,''),
-                formatter: new L.Routing.Valhalla.Formatter(),
-                routeWhileDragging: false,
-                fitSelectedRoutes: false,
-                plan: plan
-            }).addTo(map);
+            // router.getRouter()._polygon = excludePoly;
+            // router.route();
+            router.route(options={polygon: excludePoly});
+            
+            // router = L.Routing.control({
+            //     router: L.Routing.valhalla('','pedestrian',excludePoly,''),
+            //     formatter: new L.Routing.Valhalla.Formatter(),
+            //     routeWhileDragging: false,
+            //     fitSelectedRoutes: false,
+            //     plan: plan
+            // }).addTo(map);
         })
         .catch(function (err) {
             console.log('error: ' + err);
