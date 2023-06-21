@@ -558,8 +558,9 @@
               var xj = excludePoly[l][j][0], yj = excludePoly[l][j][1];
               var intersect = ((yi > y) != (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
               if (intersect){
-                //alert(excludePoly[l])
-                origDestExclusion.push(l);
+                // alert(excludePoly[l])
+                // origDestExclusion.push(l);
+                excludePoly = '';
                 break;
               }
             }

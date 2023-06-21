@@ -49,10 +49,17 @@ function LoadData(){
             var threshold = geojsonPolygon.threshold;
             var maxAQI = 0;
             var polygon_AQI = 0;
+
+            var excludePoly2 = [];
             for(var i=0; i < geojsonPolygon.features.length; i++){
                 polygon_AQI = geojsonPolygon.features[i].properties.AQI;
                 maxAQI = polygon_AQI != 32767 && polygon_AQI > maxAQI ? polygon_AQI : maxAQI;
+                if(geojsonPolygon.features[i].properties.AQI >= threshold){
+                    excludePoly2.push(geojsonPolygon["features"][i]["geometry"]["coordinates"][0])
+                }
             };
+            excludePoly = excludePoly2
+            router.route(options={polygon: excludePoly});
 
             function getColor(d) {
                 redval = (d > maxAQI/2) ? 1 : redval = 2*d/maxAQI;
@@ -158,31 +165,31 @@ function LoadData(){
             console.log('error: ' + err);
         });
 
-    fetch('../filtered.json')
-        .then(function (response) {
-            console.log(response);
-            return response.json();
-        })
-        .then(function (data) {
-            var geojsonPolygon = data;
-            excludePoly = '';
-            excludePoly = geojsonPolygon["features"][0]["geometry"]["coordinates"];
+    // fetch('../filtered.json')
+    //     .then(function (response) {
+    //         console.log(response);
+    //         return response.json();
+    //     })
+    //     .then(function (data) {
+    //         // var geojsonPolygon = data;
+    //         // excludePoly = '';
+    //         // excludePoly = geojsonPolygon["features"][0]["geometry"]["coordinates"];
 
-            // router.getRouter()._polygon = excludePoly;
-            // router.route();
-            router.route(options={polygon: excludePoly});
+    //         // router.getRouter()._polygon = excludePoly;
+    //         // router.route();
+    //         router.route(options={polygon: excludePoly});
             
-            // router = L.Routing.control({
-            //     router: L.Routing.valhalla('','pedestrian',excludePoly,''),
-            //     formatter: new L.Routing.Valhalla.Formatter(),
-            //     routeWhileDragging: false,
-            //     fitSelectedRoutes: false,
-            //     plan: plan
-            // }).addTo(map);
-        })
-        .catch(function (err) {
-            console.log('error: ' + err);
-        });
+    //         // router = L.Routing.control({
+    //         //     router: L.Routing.valhalla('','pedestrian',excludePoly,''),
+    //         //     formatter: new L.Routing.Valhalla.Formatter(),
+    //         //     routeWhileDragging: false,
+    //         //     fitSelectedRoutes: false,
+    //         //     plan: plan
+    //         // }).addTo(map);
+    //     })
+    //     .catch(function (err) {
+    //         console.log('error: ' + err);
+    //     });
 }
 LoadData();
 setInterval(function(){LoadData();},30 * 1000);
