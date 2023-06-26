@@ -26,7 +26,9 @@ var plan = L.Routing.plan(
     }
     });
 
-var aqiPolygons, info, legend;
+var maxAQI = 100;
+var threshold = 50;
+var aqiPolygons, info, legend, threshold_slider;
 var layerControl = L.control.layers(null,null,{collapsed:false}).addTo(map);
 
 var excludePoly = ''
@@ -38,6 +40,44 @@ var router = L.Routing.control({
     plan: plan
 }).addTo(map);
 
+function fasterUnion(allGeometries) {
+    const mid = Math.floor(allGeometries.length / 2);
+    let group1 = allGeometries.slice(0, mid);
+    let group2 = allGeometries.slice(mid);
+  
+    while (group1.length > 1) {
+      group1 = unionGroup(group1);
+    }
+    while (group2.length > 1) {
+      group2 = unionGroup(group2);
+    }
+  
+    let result;
+    if (group1.length === 1 && group2.length === 1) {
+      result = turf.union(group1[0], group2[0]);
+    } else if (group1.length === 1) {
+      result = group1[0];
+    } else {
+      result = group2[0];
+    }
+  
+    return result;
+  }
+  
+  function unionGroup(group) {
+    let newGroup = [];
+    for (let i = 0; i < group.length; i += 2) {
+      let a = group[i];
+      let b = i + 1 < group.length ? group[i + 1] : null;
+      if (b) {
+        newGroup.push(turf.union(a, b));
+      } else {
+        newGroup.push(a);
+      }
+    }
+    return newGroup;
+  }
+
 function LoadData(){
     fetch('../polygonized.json')
         .then(function (response) {
@@ -46,19 +86,36 @@ function LoadData(){
         })
         .then(function (data) {
             var geojsonPolygon = data;
-            var threshold = geojsonPolygon.threshold;
-            var maxAQI = 0;
+            // threshold = geojsonPolygon.threshold;
+            maxAQI = 0;
             var polygon_AQI = 0;
 
-            var excludePoly2 = [];
+            // var excludePoly2 = [];
+            var excludePoly3 = [];
             for(var i=0; i < geojsonPolygon.features.length; i++){
                 polygon_AQI = geojsonPolygon.features[i].properties.AQI;
                 maxAQI = polygon_AQI != 32767 && polygon_AQI > maxAQI ? polygon_AQI : maxAQI;
                 if(geojsonPolygon.features[i].properties.AQI >= threshold){
-                    excludePoly2.push(geojsonPolygon["features"][i]["geometry"]["coordinates"][0])
+                    // excludePoly2.push(geojsonPolygon["features"][i]["geometry"]["coordinates"][0])
+                    excludePoly3.push(geojsonPolygon["features"][i])
                 }
             };
-            excludePoly = excludePoly2
+            threshold_slider.max = maxAQI;
+
+            // excludePoly = excludePoly2;
+            excludePoly3 = fasterUnion(excludePoly3);
+            if(excludePoly3==null){
+                excludePoly = "";
+            }
+            else if(typeof(excludePoly3["geometry"]["coordinates"][0][0][0]) == "number"){
+                excludePoly = excludePoly3["geometry"]["coordinates"];
+            }
+            else{
+                excludePoly = [];
+                for(var i=0; i < excludePoly3["geometry"]["coordinates"].length; i++){
+                    excludePoly.push(excludePoly3["geometry"]["coordinates"][i][0]);
+                }
+            }
             router.route(options={polygon: excludePoly});
 
             function getColor(d) {
@@ -192,5 +249,21 @@ function LoadData(){
     //     });
 }
 LoadData();
-setInterval(function(){LoadData();},30 * 1000);
+
+var threshold_slider = L.control.slider(function(value) {
+    threshold = value;
+    LoadData();
+}, {
+max: 150,
+min: 0,
+value: threshold,
+step: 1,
+size: '250px',
+collapsed: false,
+logo: 'threshold',
+position: 'topleft',
+id: 'threshold_slider'
+}).addTo(map);
+
+// setInterval(function(){LoadData();},1 * 60 * 1000);
 },{}]},{},[1]);
