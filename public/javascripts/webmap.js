@@ -28,7 +28,7 @@ var plan = L.Routing.plan(
 
 var maxAQI = 100;
 var threshold = 50;
-var aqiPolygons, info, legend, threshold_slider;
+var aqiPolygons, info, legend, threshold_slider, geojsonPolygon;
 var layerControl = L.control.layers(null,null,{collapsed:false}).addTo(map);
 
 var excludePoly = ''
@@ -78,149 +78,168 @@ function fasterUnion(allGeometries) {
     return newGroup;
   }
 
-function LoadData(){
-    fetch('../polygonized.json')
+function refreshLayers(){
+    // threshold = geojsonPolygon.threshold;
+    maxAQI = 0;
+    var polygon_AQI = 0;
+
+    // var excludePoly2 = [];
+    var excludePoly3 = [];
+    for(var i=0; i < geojsonPolygon.features.length; i++){
+        polygon_AQI = geojsonPolygon.features[i].properties.AQI;
+        maxAQI = polygon_AQI != 32767 && polygon_AQI > maxAQI ? polygon_AQI : maxAQI;
+        if(geojsonPolygon.features[i].properties.AQI >= threshold){
+            // excludePoly2.push(geojsonPolygon["features"][i]["geometry"]["coordinates"][0])
+            excludePoly3.push(geojsonPolygon["features"][i])
+        }
+    };
+
+    // excludePoly = excludePoly2;
+    excludePoly3 = fasterUnion(excludePoly3);
+    if(excludePoly3==null){
+        excludePoly = "";
+    }
+    else if(typeof(excludePoly3["geometry"]["coordinates"][0][0][0]) == "number"){
+        excludePoly = excludePoly3["geometry"]["coordinates"];
+    }
+    else{
+        excludePoly = [];
+        for(var i=0; i < excludePoly3["geometry"]["coordinates"].length; i++){
+            excludePoly.push(excludePoly3["geometry"]["coordinates"][i][0]);
+        }
+    }
+    router.route(options={polygon: excludePoly});
+
+    function getColor(d) {
+        redval = (d > maxAQI/2) ? 1 : redval = 2*d/maxAQI;
+        var hexred = (Math.floor(redval*255)).toString(16);
+        hexred = hexred.length == 1 ? '0'.concat(hexred) : hexred;
+        greval = (d < maxAQI/2) ? 1 : 2*(1-(d/maxAQI));
+        var hexgre = Math.floor((greval*255)).toString(16);
+        hexgre = hexgre.length == 1 ? '0'.concat(hexgre) : hexgre;
+        var hex = "#".concat(hexred,hexgre,'00');
+        //alert(hex)
+        return hex;
+    }
+    function style(feature) {
+        return {            // highlight black if >= threshold
+            fillColor: feature.properties.AQI >= threshold ? '#000000' : getColor(feature.properties.AQI),
+            weight: 0,
+            opacity: 1,
+            color: 'white',
+            dashArray: '2',
+            fillOpacity: 0.5
+        };
+    }
+    function highlightFeature(e) {
+        var layer = e.target;
+        layer.setStyle({
+            weight: 1,
+            color: '#666',
+            dashArray: '',
+            fillOpacity: 0.7
+        });
+        layer.bringToFront();
+        info.update(layer.feature.properties.AQI.toString());
+    }
+    function resetHighlight(e) {
+        var layer = e.target;
+        aqiPolygons.resetStyle(layer);
+        info.update();
+    }
+    function zoomToFeature(e) {
+        map.fitBounds(e.target.getBounds());
+    }
+    function onEachFeature(feature, layer) {
+        layer.on({
+            mouseover: highlightFeature,
+            mouseout: resetHighlight,
+            click: zoomToFeature
+        });
+    }
+
+    if(aqiPolygons){
+        layerControl.removeLayer(aqiPolygons);
+        map.removeLayer(aqiPolygons);
+    }
+    aqiPolygons = L.geoJson(geojsonPolygon, {
+        style: style,
+        onEachFeature: onEachFeature
+    });
+    layerControl.addOverlay(aqiPolygons, "AQI polygons");
+    aqiPolygons.addTo(map);
+
+    // L.geoJSON(geojsonPolygon, {
+    //     onEachFeature: function(feature, featureLayer) {
+    //     featureLayer.bindPopup(feature.properties.AQI.toString());
+    //     }}).addTo(map);
+
+    if(info){
+        map.removeControl(info);
+    }
+    info = L.control({position: 'bottomright'});
+    info.onAdd = function (map) {
+        this._div = L.DomUtil.create('div', 'info'); // create a div with a class "info"
+        this.update();
+        return this._div;
+    };
+    // method that we will use to update the control based on feature properties passed
+    info.update = function (props) {
+        this._div.innerHTML = '<h4>US AQI Levels</h4>' +  (props ?
+            '<b>' + props + '</b> US AQI'
+            : 'Hover over an area');
+    };
+    info.addTo(map);
+
+    if(legend){
+        map.removeControl(legend);
+    }
+    legend = L.control({position: 'bottomleft'});
+    legend.onAdd = function (map) {
+        var div = L.DomUtil.create('div', 'info legend'),
+            grades = [0*maxAQI/7, 1*maxAQI/7, 2*maxAQI/7, 3*maxAQI/7, 4*maxAQI/7, 5*maxAQI/7, 6*maxAQI/7];
+        // loop through our density intervals and generate a label with a colored square for each interval
+        for (var i = 0; i < grades.length; i++) {
+            div.innerHTML +=
+                '<i style="background:' + getColor(grades[i] + 1) + '"></i> ' +
+                Math.round(grades[i]) + (grades[i + 1] ? '&ndash;' + Math.round(grades[i + 1]) + '<br>' : '+ <br>');
+        }
+        div.innerHTML +=
+            '<i style="background:' + '#000000' + '"></i> ' + threshold + '+' + ' (threshold)'; // black legend for threshold
+        return div;
+    };
+    legend.addTo(map);
+}
+
+async function LoadData(){
+    const r1 = await fetch('../polygonized.json')
         .then(function (response) {
             console.log(response);
             return response.json();
         })
         .then(function (data) {
-            var geojsonPolygon = data;
-            // threshold = geojsonPolygon.threshold;
-            maxAQI = 0;
-            var polygon_AQI = 0;
-
-            // var excludePoly2 = [];
-            var excludePoly3 = [];
-            for(var i=0; i < geojsonPolygon.features.length; i++){
-                polygon_AQI = geojsonPolygon.features[i].properties.AQI;
-                maxAQI = polygon_AQI != 32767 && polygon_AQI > maxAQI ? polygon_AQI : maxAQI;
-                if(geojsonPolygon.features[i].properties.AQI >= threshold){
-                    // excludePoly2.push(geojsonPolygon["features"][i]["geometry"]["coordinates"][0])
-                    excludePoly3.push(geojsonPolygon["features"][i])
-                }
-            };
-            threshold_slider.max = maxAQI;
-
-            // excludePoly = excludePoly2;
-            excludePoly3 = fasterUnion(excludePoly3);
-            if(excludePoly3==null){
-                excludePoly = "";
-            }
-            else if(typeof(excludePoly3["geometry"]["coordinates"][0][0][0]) == "number"){
-                excludePoly = excludePoly3["geometry"]["coordinates"];
-            }
-            else{
-                excludePoly = [];
-                for(var i=0; i < excludePoly3["geometry"]["coordinates"].length; i++){
-                    excludePoly.push(excludePoly3["geometry"]["coordinates"][i][0]);
-                }
-            }
-            router.route(options={polygon: excludePoly});
-
-            function getColor(d) {
-                redval = (d > maxAQI/2) ? 1 : redval = 2*d/maxAQI;
-                var hexred = (Math.floor(redval*255)).toString(16);
-                hexred = hexred.length == 1 ? '0'.concat(hexred) : hexred;
-                greval = (d < maxAQI/2) ? 1 : 2*(1-(d/maxAQI));
-                var hexgre = Math.floor((greval*255)).toString(16);
-                hexgre = hexgre.length == 1 ? '0'.concat(hexgre) : hexgre;
-                var hex = "#".concat(hexred,hexgre,'00');
-                //alert(hex)
-                return hex;
-            }
-            function style(feature) {
-                return {            // highlight black if >= threshold
-                    fillColor: feature.properties.AQI >= threshold ? '#000000' : getColor(feature.properties.AQI),
-                    weight: 0,
-                    opacity: 1,
-                    color: 'white',
-                    dashArray: '2',
-                    fillOpacity: 0.5
-                };
-            }
-            function highlightFeature(e) {
-                var layer = e.target;
-                layer.setStyle({
-                    weight: 1,
-                    color: '#666',
-                    dashArray: '',
-                    fillOpacity: 0.7
-                });
-                layer.bringToFront();
-                info.update(layer.feature.properties.AQI.toString());
-            }
-            function resetHighlight(e) {
-                var layer = e.target;
-                aqiPolygons.resetStyle(layer);
-                info.update();
-            }
-            function zoomToFeature(e) {
-                map.fitBounds(e.target.getBounds());
-            }
-            function onEachFeature(feature, layer) {
-                layer.on({
-                    mouseover: highlightFeature,
-                    mouseout: resetHighlight,
-                    click: zoomToFeature
-                });
-            }
-
-            if(aqiPolygons){
-                layerControl.removeLayer(aqiPolygons);
-                map.removeLayer(aqiPolygons);
-            }
-            aqiPolygons = L.geoJson(geojsonPolygon, {
-                style: style,
-                onEachFeature: onEachFeature
-            });
-            layerControl.addOverlay(aqiPolygons, "AQI polygons");
-            aqiPolygons.addTo(map);
-
-            // L.geoJSON(geojsonPolygon, {
-            //     onEachFeature: function(feature, featureLayer) {
-            //     featureLayer.bindPopup(feature.properties.AQI.toString());
-            //     }}).addTo(map);
-
-            if(info){
-                map.removeControl(info);
-            }
-            info = L.control({position: 'bottomright'});
-            info.onAdd = function (map) {
-                this._div = L.DomUtil.create('div', 'info'); // create a div with a class "info"
-                this.update();
-                return this._div;
-            };
-            // method that we will use to update the control based on feature properties passed
-            info.update = function (props) {
-                this._div.innerHTML = '<h4>US AQI Levels</h4>' +  (props ?
-                    '<b>' + props + '</b> US AQI'
-                    : 'Hover over an area');
-            };
-            info.addTo(map);
-
-            if(legend){
-                map.removeControl(legend);
-            }
-            legend = L.control({position: 'bottomleft'});
-            legend.onAdd = function (map) {
-                var div = L.DomUtil.create('div', 'info legend'),
-                    grades = [0*maxAQI/7, 1*maxAQI/7, 2*maxAQI/7, 3*maxAQI/7, 4*maxAQI/7, 5*maxAQI/7, 6*maxAQI/7];
-                // loop through our density intervals and generate a label with a colored square for each interval
-                for (var i = 0; i < grades.length; i++) {
-                    div.innerHTML +=
-                        '<i style="background:' + getColor(grades[i] + 1) + '"></i> ' +
-                        Math.round(grades[i]) + (grades[i + 1] ? '&ndash;' + Math.round(grades[i + 1]) + '<br>' : '+ <br>');
-                }
-                div.innerHTML +=
-                    '<i style="background:' + '#000000' + '"></i> ' + threshold + '+' + ' (threshold)'; // black legend for threshold
-                return div;
-            };
-            legend.addTo(map);
+            geojsonPolygon = data;
+            refreshLayers();
         })
         .catch(function (err) {
             console.log('error: ' + err);
         });
+    console.log(r1);
+
+    threshold_slider = L.control.slider(function(value) {
+        threshold = value;
+        refreshLayers();
+    }, {
+    max: 150,
+    min: 0,
+    value: threshold,
+    step: 1,
+    size: '250px',
+    collapsed: false,
+    logo: 'threshold',
+    position: 'topleft',
+    id: 'threshold_slider'
+    }).addTo(map);
 
     // fetch('../filtered.json')
     //     .then(function (response) {
@@ -248,22 +267,7 @@ function LoadData(){
     //         console.log('error: ' + err);
     //     });
 }
+
 LoadData();
-
-var threshold_slider = L.control.slider(function(value) {
-    threshold = value;
-    LoadData();
-}, {
-max: 150,
-min: 0,
-value: threshold,
-step: 1,
-size: '250px',
-collapsed: false,
-logo: 'threshold',
-position: 'topleft',
-id: 'threshold_slider'
-}).addTo(map);
-
 // setInterval(function(){LoadData();},1 * 60 * 1000);
 },{}]},{},[1]);
